@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>圖片尺寸批次調整工具 (400KB 上限最清晰化)</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #cbd5e1;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: #1e293b;
+      margin: 0;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    select, input[type="file"], input[type="color"], input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #1d4ed8;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .preview-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .canvas-container {
+      max-width: 100%;
+      max-height: 200px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #eee;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      user-select: none;
+      padding: 4px;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      cursor: move;
+      border: 2px solid #000000; /* 黑框標示尺寸邊界 */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+    .card-meta {
+      font-size: 0.8rem;
+      color: #475569;
+      margin-bottom: 8px;
+      width: 100%;
+      text-align: left;
+      line-height: 1.4;
+    }
+    .card-meta span {
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .badge-success {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #2563eb;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>圖片尺寸批次調整工具 (400KB 上限最高畫質)</h1>
+
+  <div class="panel">
+    <div>
+      <label for="imageInput">1. 選擇圖片（可複選）</label>
+      <input type="file" id="imageInput" accept="image/*" multiple>
+    </div>
+
+    <div class="controls">
+      <div>
+        <label for="sizeSelect">2. 目標尺寸</label>
+        <select id="sizeSelect">
+          <option value="600x450">600 × 450 (4:3)</option>
+          <option value="200x150">200 × 150 (4:3)</option>
+          <option value="400x300">400 × 300 (4:3)</option>
+          <option value="600x500">600 × 500 (6:5)</option>
+          <option value="970x250">970 × 250 (橫幅廣告)</option>
+          <option value="640x360">640 × 360 (16:9)</option>
+          <option value="300x169">300 × 169 (16:9)</option>
+          <option value="320x180">320 × 180 (16:9)</option>
+          <option value="180x320">180 × 320 (9:16 直式)</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="fitSelect">3. 裁切與版型</label>
+        <select id="fitSelect">
+          <option value="contain">完整顯示 (置中留白) - 不裁切，背景留白</option>
+          <option value="cover">裁切填滿 (Cover) - 無白邊，滿版裁切</option>
+          <option value="stretch">強制拉伸 (Stretch) - 變形填滿不留白</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="formatSelect">4. 輸出格式</label>
+        <select id="formatSelect">
+          <option value="image/jpeg">JPEG (推薦，畫質壓榨最佳)</option>
+          <option value="image/webp">WebP (高壓縮率)</option>
+          <option value="image/png">PNG (無損，可能超過限制)</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="maxKbInput">5. 限制檔案大小 (KB)</label>
+        <input type="number" id="maxKbInput" value="400" min="10" step="10">
+      </div>
+
+      <div>
+        <label for="bgColor">6. 留邊背景顏色</label>
+        <input type="color" id="bgColor" value="#ffffff">
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+      <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
+      <span class="hint">💡 系統會自動計算並將畫質「壓榨至 400KB 上限的最清晰狀態」。</span>
+    </div>
+  </div>
+
+  <div class="preview-grid" id="previewGrid"></div>
+</div>
+
+<script>
+  const imageInput = document.getElementById('imageInput');
+  const sizeSelect = document.getElementById('sizeSelect');
+  const fitSelect = document.getElementById('fitSelect');
+  const formatSelect = document.getElementById('formatSelect');
+  const maxKbInput = document.getElementById('maxKbInput');
+  const bgColor = document.getElementById('bgColor');
+  const previewGrid = document.getElementById('previewGrid');
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
+
+  let loadedImages = [];
+
+  imageInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    loadedImages = [];
+    previewGrid.innerHTML = '';
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          loadedImages.push({
+            name: file.name,
+            img: img,
+            origSize: file.size,
+            offsetX: null,
+            offsetY: null
+          });
+          renderPreviews();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  [sizeSelect, fitSelect, formatSelect, maxKbInput, bgColor].forEach(element => {
+    element.addEventListener('change', () => {
+      loadedImages.forEach(item => {
+        item.offsetX = null;
+        item.offsetY = null;
+      });
+      renderPreviews();
+    });
+  });
+
+  // 計算 Base64 的位元組大小
+  function getBase64SizeBytes(dataUrl) {
+    const head = dataUrl.substring(0, dataUrl.indexOf(',') + 1);
+    const strLen = dataUrl.length - head.length;
+    return Math.round(strLen * 3 / 4);
+  }
+
+  // 二分搜尋法：找出小於等於上限的最高 Quality 數值 (最清晰)
+  function findMaxQualityUnderLimit(canvas, format, maxBytes) {
+    let low = 0.01;
+    let high = 1.0;
+    let bestQuality = 1.0;
+    let bestDataUrl = canvas.toDataURL(format, 1.0);
+
+    // 如果 100% 品質就已經沒有超過限制，直接返回最高畫質
+    if (getBase64SizeBytes(bestDataUrl) <= maxBytes) {
+      return { quality: 1.0, dataUrl: bestDataUrl };
+    }
+
+    // 二分搜尋進行 8 次運算，精度可達 0.003
+    for (let i = 0; i < 8; i++) {
+      const mid = (low + high) / 2;
+      const testUrl = canvas.toDataURL(format, mid);
+      const testSize = getBase64SizeBytes(testUrl);
+
+      if (testSize <= maxBytes) {
+        bestQuality = mid;
+        bestDataUrl = testUrl;
+        low = mid; // 嘗試找更高品質
+      } else {
+        high = mid; // 品質太高超過容量，調低品質
+      }
+    }
+
+    return { quality: bestQuality, dataUrl: bestDataUrl };
+  }
+
+  function renderPreviews() {
+    previewGrid.innerHTML = '';
+    const [targetW, targetH] = sizeSelect.value.split('x').map(Number);
+    const fitMode = fitSelect.value;
+    const format = formatSelect.value;
+    const maxKb = parseFloat(maxKbInput.value) || 400;
+    const maxBytes = maxKb * 1024;
+    const bg = bgColor.value;
+
+    loadedImages.forEach((item) => {
+      const card = document.createElement('div');
+      card.className = 'preview-card';
+
+      const canvasContainer = document.createElement('div');
+      canvasContainer.className = 'canvas-container';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+
+      const img = item.img;
+      let renderW, renderH;
+
+      if (fitMode === 'stretch') {
+        renderW = targetW;
+        renderH = targetH;
+      } else {
+        const scaleW = targetW / img.width;
+        const scaleH = targetH / img.height;
+        const scale = (fitMode === 'cover') ? Math.max(scaleW, scaleH) : Math.min(scaleW, scaleH);
+        renderW = img.width * scale;
+        renderH = img.height * scale;
+      }
+
+      if (item.offsetX === null) item.offsetX = (targetW - renderW) / 2;
+      if (item.offsetY === null) item.offsetY = (targetH - renderH) / 2;
+
+      const drawCanvas = () => {
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+      };
+
+      drawCanvas();
+      canvasContainer.appendChild(canvas);
+
+      // 拖曳定位邏輯
+      let isDragging = false;
+      let startX, startY;
+
+      canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        startX = e.clientX * scaleX - item.offsetX;
+        startY = e.clientY * scaleY - item.offsetY;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        item.offsetX = e.clientX * scaleX - startX;
+        item.offsetY = e.clientY * scaleY - startY;
+
+        drawCanvas();
+        updateMetaAndDownloadBtn();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          renderPreviews();
+        }
+      });
+
+      // 自動將品質最佳化，逼近至 400KB
+      let optimizedResult = { quality: 1.0, dataUrl: canvas.toDataURL(format, 1.0) };
+      if (format !== 'image/png') {
+        optimizedResult = findMaxQualityUnderLimit(canvas, format, maxBytes);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'card-meta';
+
+      const updateMetaAndDownloadBtn = () => {
+        let currentResult = optimizedResult;
+        if (isDragging && format !== 'image/png') {
+          currentResult = findMaxQualityUnderLimit(canvas, format, maxBytes);
+        }
+        let curSizeKB = (getBase64SizeBytes(currentResult.dataUrl) / 1024).toFixed(1);
+        let qPercent = Math.round(currentResult.quality * 100);
+
+        meta.innerHTML = `
+          <div>檔名：${item.name}</div>
+          <div>尺寸：<span>${targetW} × ${targetH}</span></div>
+          <div>大小：<span style="color: ${parseFloat(curSizeKB) <= maxKb ? '#166534' : '#dc2626'}; font-weight: bold;">${curSizeKB} KB</span> 
+            <span class="badge ${parseFloat(curSizeKB) <= maxKb ? 'badge-success' : ''}">${parseFloat(curSizeKB) <= maxKb ? '最高清晰 (≤' + maxKb + 'KB)' : '超出上限'}</span>
+          </div>
+          ${format !== 'image/png' ? `<div>的最佳畫質：<span>${qPercent}%</span></div>` : ''}
+        `;
+      };
+
+      updateMetaAndDownloadBtn();
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'btn';
+      downloadBtn.style.padding = '6px 12px';
+      downloadBtn.style.fontSize = '0.8rem';
+      downloadBtn.innerText = '下載最高畫質圖片';
+
+      const ext = format.split('/')[1];
+      const filename = `${targetW}x${targetH}_${item.name.substring(0, item.name.lastIndexOf('.')) || item.name}.${ext}`;
+
+      downloadBtn.onclick = () => {
+        const finalResult = (format !== 'image/png') ? findMaxQualityUnderLimit(canvas, format, maxBytes) : { dataUrl: canvas.toDataURL(format) };
+        downloadImage(finalResult.dataUrl, filename);
+      };
+
+      card.appendChild(canvasContainer);
+      card.appendChild(meta);
+      card.appendChild(downloadBtn);
+
+      previewGrid.appendChild(card);
+    });
+  }
+
+  function downloadImage(dataUrl, filename) {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataUrl;
+    link.click();
+  }
+
+  downloadAllBtn.addEventListener('click', () => {
+    const cards = previewGrid.querySelectorAll('.preview-card');
+    cards.forEach((card, i) => {
+      const btn = card.querySelector('button');
+      setTimeout(() => btn.click(), i * 250);
+    });
+  });
+</script>
+
+</body>
+</html>
