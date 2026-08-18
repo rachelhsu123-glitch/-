@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>圖片尺寸批次調整工具 (400KB 上限最清晰化)</title>
+  <title>圖片尺寸批次調整工具 (400KB 上限最高畫質)</title>
   <style>
     :root {
       --primary: #2563eb;
@@ -83,24 +83,23 @@
     }
     .canvas-container {
       max-width: 100%;
-      max-height: 200px;
+      max-height: 220px;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #eee;
+      background: #e2e8f0;
       border-radius: 4px;
       margin-bottom: 8px;
       user-select: none;
-      padding: 4px;
+      padding: 12px;
     }
     canvas {
       max-width: 100%;
       max-height: 200px;
       object-fit: contain;
       cursor: move;
-      border: 2px solid #000000; /* 黑框標示尺寸邊界 */
-      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
     .card-meta {
       font-size: 0.8rem;
@@ -164,8 +163,7 @@
         <label for="fitSelect">3. 裁切與版型</label>
         <select id="fitSelect">
           <option value="contain">完整顯示 (置中留白) - 不裁切，背景留白</option>
-          <option value="cover">裁切填滿 (Cover) - 無白邊，滿版裁切</option>
-          <option value="stretch">強制拉伸 (Stretch) - 變形填滿不留白</option>
+          <option value="cover">裁切填滿 (Cover) - 預覽不裁切，下載時裁切畫框內區域</option>
         </select>
       </div>
 
@@ -191,7 +189,7 @@
 
     <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
       <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 系統會自動計算並將畫質「壓榨至 400KB 上限的最清晰狀態」。</span>
+      <span class="hint">💡 黑色實線框即為最終下載裁切範圍，拖曳圖片可調整定位。</span>
     </div>
   </div>
 
@@ -245,26 +243,22 @@
     });
   });
 
-  // 計算 Base64 的位元組大小
   function getBase64SizeBytes(dataUrl) {
     const head = dataUrl.substring(0, dataUrl.indexOf(',') + 1);
     const strLen = dataUrl.length - head.length;
     return Math.round(strLen * 3 / 4);
   }
 
-  // 二分搜尋法：找出小於等於上限的最高 Quality 數值 (最清晰)
   function findMaxQualityUnderLimit(canvas, format, maxBytes) {
     let low = 0.01;
     let high = 1.0;
     let bestQuality = 1.0;
     let bestDataUrl = canvas.toDataURL(format, 1.0);
 
-    // 如果 100% 品質就已經沒有超過限制，直接返回最高畫質
     if (getBase64SizeBytes(bestDataUrl) <= maxBytes) {
       return { quality: 1.0, dataUrl: bestDataUrl };
     }
 
-    // 二分搜尋進行 8 次運算，精度可達 0.003
     for (let i = 0; i < 8; i++) {
       const mid = (low + high) / 2;
       const testUrl = canvas.toDataURL(format, mid);
@@ -273,9 +267,9 @@
       if (testSize <= maxBytes) {
         bestQuality = mid;
         bestDataUrl = testUrl;
-        low = mid; // 嘗試找更高品質
+        low = mid;
       } else {
-        high = mid; // 品質太高超過容量，調低品質
+        high = mid;
       }
     }
 
@@ -299,40 +293,84 @@
       canvasContainer.className = 'canvas-container';
 
       const canvas = document.createElement('canvas');
-      canvas.width = targetW;
-      canvas.height = targetH;
       const ctx = canvas.getContext('2d');
 
       const img = item.img;
-      let renderW, renderH;
+      
+      // 計算預覽畫面下的渲染尺寸與座標
+      let renderW, renderH, viewCanvasW, viewCanvasH;
 
-      if (fitMode === 'stretch') {
-        renderW = targetW;
-        renderH = targetH;
-      } else {
+      if (fitMode === 'contain') {
         const scaleW = targetW / img.width;
         const scaleH = targetH / img.height;
-        const scale = (fitMode === 'cover') ? Math.max(scaleW, scaleH) : Math.min(scaleW, scaleH);
+        const scale = Math.min(scaleW, scaleH);
         renderW = img.width * scale;
         renderH = img.height * scale;
+        viewCanvasW = targetW;
+        viewCanvasH = targetH;
+      } else {
+        // cover 模式：預覽時「暫不裁切」，完整呈現原圖，並顯示 targetW/targetH 的黑色實線畫框
+        const scaleW = targetW / img.width;
+        const scaleH = targetH / img.height;
+        const scale = Math.max(scaleW, scaleH);
+        renderW = img.width * scale;
+        renderH = img.height * scale;
+
+        // 預覽 Canvas 尺寸包含整張縮放後的圖片
+        viewCanvasW = Math.max(targetW, renderW);
+        viewCanvasH = Math.max(targetH, renderH);
       }
 
-      if (item.offsetX === null) item.offsetX = (targetW - renderW) / 2;
-      if (item.offsetY === null) item.offsetY = (targetH - renderH) / 2;
+      canvas.width = viewCanvasW;
+      canvas.height = viewCanvasH;
 
+      // 初始化偏移（置中）
+      if (item.offsetX === null) item.offsetX = (viewCanvasW - renderW) / 2;
+      if (item.offsetY === null) item.offsetY = (viewCanvasH - renderH) / 2;
+
+      // 繪製預覽內容
       const drawCanvas = () => {
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, targetW, targetH);
-        ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+        ctx.clearRect(0, 0, viewCanvasW, viewCanvasH);
+
+        if (fitMode === 'contain') {
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, targetW, targetH);
+          ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+
+          // 黑色邊框
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(0, 0, targetW, targetH);
+        } else {
+          // cover 預覽：繪製完整原圖 + 框外半透明遮罩 + 黑色實線畫框
+          ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+
+          // 畫框中心座標點 (預設位於畫布中央)
+          const cropX = (viewCanvasW - targetW) / 2;
+          const cropY = (viewCanvasH - targetH) / 2;
+
+          // 半透明暗色背景標示框外被裁切區域
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+          ctx.fillRect(0, 0, viewCanvasW, cropY); // 上
+          ctx.fillRect(0, cropY + targetH, viewCanvasW, viewCanvasH - (cropY + targetH)); // 下
+          ctx.fillRect(0, cropY, cropX, targetH); // 左
+          ctx.fillRect(cropX + targetW, cropY, viewCanvasW - (cropX + targetW), targetH); // 右
+
+          // 黑色實線畫框 (最終輸出邊界)
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(cropX, cropY, targetW, targetH);
+        }
       };
 
       drawCanvas();
       canvasContainer.appendChild(canvas);
 
-      // 拖曳定位邏輯
+      // 拖曳互動邏輯
       let isDragging = false;
       let startX, startY;
 
+      canvas.style.cursor = 'move';
       canvas.addEventListener('mousedown', (e) => {
         isDragging = true;
         const rect = canvas.getBoundingClientRect();
@@ -363,22 +401,47 @@
         }
       });
 
-      // 自動將品質最佳化，逼近至 400KB
-      let optimizedResult = { quality: 1.0, dataUrl: canvas.toDataURL(format, 1.0) };
-      if (format !== 'image/png') {
-        optimizedResult = findMaxQualityUnderLimit(canvas, format, maxBytes);
-      }
+      // 產生當下畫面的實質裁切 Canvas
+      const generateExportCanvas = () => {
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = targetW;
+        exportCanvas.height = targetH;
+        const exportCtx = exportCanvas.getContext('2d');
+
+        if (fitMode === 'contain') {
+          exportCtx.fillStyle = bg;
+          exportCtx.fillRect(0, 0, targetW, targetH);
+          exportCtx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+        } else {
+          // 計算預覽畫框與圖片繪製位置的相對位移
+          const cropX = (viewCanvasW - targetW) / 2;
+          const cropY = (viewCanvasH - targetH) / 2;
+          const drawX = item.offsetX - cropX;
+          const drawY = item.offsetY - cropY;
+
+          exportCtx.fillStyle = bg;
+          exportCtx.fillRect(0, 0, targetW, targetH);
+          exportCtx.drawImage(img, drawX, drawY, renderW, renderH);
+        }
+
+        return exportCanvas;
+      };
+
+      const getOptimizedExportResult = () => {
+        const expCanvas = generateExportCanvas();
+        if (format === 'image/png') {
+          return { quality: 1.0, dataUrl: expCanvas.toDataURL(format) };
+        }
+        return findMaxQualityUnderLimit(expCanvas, format, maxBytes);
+      };
 
       const meta = document.createElement('div');
       meta.className = 'card-meta';
 
       const updateMetaAndDownloadBtn = () => {
-        let currentResult = optimizedResult;
-        if (isDragging && format !== 'image/png') {
-          currentResult = findMaxQualityUnderLimit(canvas, format, maxBytes);
-        }
-        let curSizeKB = (getBase64SizeBytes(currentResult.dataUrl) / 1024).toFixed(1);
-        let qPercent = Math.round(currentResult.quality * 100);
+        const result = getOptimizedExportResult();
+        let curSizeKB = (getBase64SizeBytes(result.dataUrl) / 1024).toFixed(1);
+        let qPercent = Math.round(result.quality * 100);
 
         meta.innerHTML = `
           <div>檔名：${item.name}</div>
@@ -396,13 +459,13 @@
       downloadBtn.className = 'btn';
       downloadBtn.style.padding = '6px 12px';
       downloadBtn.style.fontSize = '0.8rem';
-      downloadBtn.innerText = '下載最高畫質圖片';
+      downloadBtn.innerText = '下載裁切後圖片';
 
       const ext = format.split('/')[1];
       const filename = `${targetW}x${targetH}_${item.name.substring(0, item.name.lastIndexOf('.')) || item.name}.${ext}`;
 
       downloadBtn.onclick = () => {
-        const finalResult = (format !== 'image/png') ? findMaxQualityUnderLimit(canvas, format, maxBytes) : { dataUrl: canvas.toDataURL(format) };
+        const finalResult = getOptimizedExportResult();
         downloadImage(finalResult.dataUrl, filename);
       };
 
