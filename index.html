@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>圖片尺寸批次調整工具 (400KB 上限最高畫質)</title>
+  
+  <!-- 加入網頁小圖示 (Favicon) 設定 -->
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+
   <style>
     :root {
       --primary: #2563eb;
@@ -55,7 +60,7 @@
       background: #fff;
     }
     .custom-size-group {
-      display: none; /* 預設隱藏，選擇自訂尺寸時展開 */
+      display: none;
       grid-column: 1 / -1;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
@@ -211,7 +216,7 @@
 
     <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
       <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 黑色實線框即為最終下載裁切範圍，拖曳圖片可調整定位。</span>
+      <span class="hint">💡 系統使用高精細 16 階運算，將畫質壓榨至容量上限的最清晰狀態！</span>
     </div>
   </div>
 
@@ -233,7 +238,6 @@
 
   let loadedImages = [];
 
-  // 控制自訂尺寸輸入欄位的顯示與隱藏
   sizeSelect.addEventListener('change', () => {
     if (sizeSelect.value === 'custom') {
       customSizeGroup.style.display = 'grid';
@@ -242,7 +246,6 @@
     }
   });
 
-  // 取得當前設定的寬度與高度
   function getTargetDimensions() {
     if (sizeSelect.value === 'custom') {
       const w = parseInt(customWidth.value, 10) || 100;
@@ -303,7 +306,7 @@
       return { quality: 1.0, dataUrl: bestDataUrl };
     }
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 16; i++) {
       const mid = (low + high) / 2;
       const testUrl = canvas.toDataURL(format, mid);
       const testSize = getBase64SizeBytes(testUrl);
@@ -400,7 +403,6 @@
       drawCanvas();
       canvasContainer.appendChild(canvas);
 
-      // 拖曳互動
       let isDragging = false;
       let startX, startY;
 
@@ -473,7 +475,7 @@
       const updateMetaAndDownloadBtn = () => {
         const result = getOptimizedExportResult();
         let curSizeKB = (getBase64SizeBytes(result.dataUrl) / 1024).toFixed(1);
-        let qPercent = Math.round(result.quality * 100);
+        let qPercent = (result.quality * 100).toFixed(1);
 
         meta.innerHTML = `
           <div>檔名：${item.name}</div>
@@ -481,7 +483,7 @@
           <div>大小：<span style="color: ${parseFloat(curSizeKB) <= maxKb ? '#166534' : '#dc2626'}; font-weight: bold;">${curSizeKB} KB</span> 
             <span class="badge ${parseFloat(curSizeKB) <= maxKb ? 'badge-success' : ''}">${parseFloat(curSizeKB) <= maxKb ? '最高清晰 (≤' + maxKb + 'KB)' : '超出上限'}</span>
           </div>
-          ${format !== 'image/png' ? `<div>的最佳畫質：<span>${qPercent}%</span></div>` : ''}
+          ${format !== 'image/png' ? `<div>極致畫質：<span>${qPercent}%</span></div>` : ''}
         `;
       };
 
