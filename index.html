@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>圖片尺寸批次調整工具 (400KB 上限最高畫質)</title>
+  <title>圖片尺寸批次調整工具 (400KB 上限最高畫質 - 紅框顯眼預覽版)</title>
   
   <!-- 加入網頁小圖示 (Favicon) 設定 -->
   <link rel="icon" type="image/png" href="favicon.png">
@@ -24,36 +24,36 @@
       padding: 24px;
     }
     .container {
-      max-width: 1000px;
+      max-width: 1200px;
       margin: 0 auto;
     }
     h1 {
-      font-size: 1.5rem;
-      margin-bottom: 16px;
+      font-size: 1.75rem;
+      margin-bottom: 20px;
     }
     .panel {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
     .controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       margin-top: 16px;
     }
     label {
       display: block;
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     select, input[type="file"], input[type="color"], input[type="number"] {
       width: 100%;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
       box-sizing: border-box;
@@ -62,18 +62,18 @@
     .custom-size-group {
       display: none;
       grid-column: 1 / -1;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 16px;
       background: #f1f5f9;
-      padding: 12px;
-      border-radius: 6px;
+      padding: 16px;
+      border-radius: 8px;
       border: 1px dashed var(--border);
     }
     .btn {
       background: var(--primary);
       color: white;
       border: none;
-      padding: 10px 16px;
+      padding: 12px 20px;
       border-radius: 6px;
       font-weight: 600;
       cursor: pointer;
@@ -84,45 +84,47 @@
     }
     .preview-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+      gap: 24px;
     }
     .preview-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px;
+      border-radius: 10px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
     }
     .canvas-container {
-      max-width: 100%;
-      max-height: 220px;
+      width: 100%;
+      min-height: 320px;
+      max-height: 450px;
       overflow: hidden;
       display: flex;
       justify-content: center;
       align-items: center;
       background: #e2e8f0;
-      border-radius: 4px;
-      margin-bottom: 8px;
+      border-radius: 8px;
+      margin-bottom: 16px;
       user-select: none;
-      padding: 12px;
+      padding: 16px;
     }
     canvas {
       max-width: 100%;
-      max-height: 200px;
+      max-height: 400px;
       object-fit: contain;
       cursor: move;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .card-meta {
-      font-size: 0.8rem;
+      font-size: 0.9rem;
       color: #475569;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
       width: 100%;
       text-align: left;
-      line-height: 1.4;
+      line-height: 1.5;
     }
     .card-meta span {
       font-weight: bold;
@@ -130,9 +132,9 @@
     }
     .badge {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 3px 8px;
       border-radius: 4px;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       background: #e2e8f0;
       color: #334155;
     }
@@ -141,7 +143,7 @@
       color: #166534;
     }
     .hint {
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       color: #2563eb;
       margin-top: 4px;
     }
@@ -190,7 +192,7 @@
         <label for="fitSelect">3. 裁切與版型</label>
         <select id="fitSelect">
           <option value="contain">完整顯示 (置中留白) - 不裁切，背景留白</option>
-          <option value="cover">裁切填滿 (Cover) - 預覽不裁切，下載時裁切畫框內區域</option>
+          <option value="cover">裁切填滿 (Cover) - 預覽不裁切，下載時裁切紅框內區域</option>
         </select>
       </div>
 
@@ -214,9 +216,9 @@
       </div>
     </div>
 
-    <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
       <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 系統使用高精細 16 階運算，將畫質壓榨至容量上限的最清晰狀態！</span>
+      <span class="hint">💡 醒目紅色實線框即為最終下載裁切範圍，拖曳圖片可精準調整位置！</span>
     </div>
   </div>
 
@@ -379,6 +381,7 @@
           ctx.fillRect(0, 0, targetW, targetH);
           ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
 
+          // 完整顯示模式邊框保持黑色
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
           ctx.strokeRect(0, 0, targetW, targetH);
@@ -388,14 +391,16 @@
           const cropX = (viewCanvasW - targetW) / 2;
           const cropY = (viewCanvasH - targetH) / 2;
 
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+          // 框外加深半透明暗色遮罩，凸顯裁切區
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
           ctx.fillRect(0, 0, viewCanvasW, cropY);
           ctx.fillRect(0, cropY + targetH, viewCanvasW, viewCanvasH - (cropY + targetH));
           ctx.fillRect(0, cropY, cropX, targetH);
           ctx.fillRect(cropX + targetW, cropY, viewCanvasW - (cropX + targetW), targetH);
 
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 3;
+          // 顯眼的鮮紅色實線裁切畫框
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 4;
           ctx.strokeRect(cropX, cropY, targetW, targetH);
         }
       };
@@ -491,8 +496,8 @@
 
       const downloadBtn = document.createElement('button');
       downloadBtn.className = 'btn';
-      downloadBtn.style.padding = '6px 12px';
-      downloadBtn.style.fontSize = '0.8rem';
+      downloadBtn.style.padding = '8px 16px';
+      downloadBtn.style.fontSize = '0.9rem';
       downloadBtn.innerText = '下載裁切後圖片';
 
       const ext = format.split('/')[1];
