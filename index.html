@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>圖片尺寸批次調整工具</title>
+  <title>圖片尺寸批次與多圖組合工具</title>
   
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="favicon.png">
@@ -29,6 +29,33 @@
     h1 {
       font-size: 1.75rem;
       margin-bottom: 20px;
+    }
+    .tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+    }
+    .tab-btn {
+      background: #e2e8f0;
+      color: #475569;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
     }
     .panel {
       background: var(--card);
@@ -129,12 +156,14 @@
       margin-bottom: 16px;
       user-select: none;
       padding: 16px;
+      position: relative;
     }
     canvas {
       max-width: 100%;
       max-height: 400px;
       object-fit: contain;
-      cursor: move;
+      cursor: default;
+      user-select: none;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .card-meta {
@@ -149,18 +178,6 @@
       font-weight: bold;
       color: #0f172a;
     }
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      background: #e2e8f0;
-      color: #334155;
-    }
-    .badge-success {
-      background: #dcfce7;
-      color: #166534;
-    }
     .hint {
       font-size: 0.85rem;
       color: #2563eb;
@@ -171,83 +188,174 @@
 <body>
 
 <div class="container">
-  <h1>圖片尺寸批次調整工具</h1>
+  <h1>圖片處理工具箱</h1>
 
-  <div class="panel">
-    <div>
-      <label for="imageInput">1. 選擇圖片（可複選）</label>
-      <input type="file" id="imageInput" accept="image/*" multiple>
-    </div>
-
-    <div class="controls">
-      <div>
-        <label for="sizeSelect">2. 目標尺寸</label>
-        <select id="sizeSelect">
-          <option value="600x450">600 × 450 (4:3)</option>
-          <option value="200x150">200 × 150 (4:3)</option>
-          <option value="400x300">400 × 300 (4:3)</option>
-          <option value="600x500">600 × 500 (6:5)</option>
-          <option value="970x250">970 × 250 (橫幅廣告)</option>
-          <option value="640x360">640 × 360 (16:9)</option>
-          <option value="300x169">300 × 169 (16:9)</option>
-          <option value="320x180">320 × 180 (16:9)</option>
-          <option value="180x320">180 × 320 (9:16 直式)</option>
-          <option value="custom">✏️ 自訂尺寸 (Custom)</option>
-        </select>
-      </div>
-
-      <div id="customSizeGroup" class="custom-size-group">
-        <div>
-          <label for="customWidth">自訂寬度 (px)</label>
-          <input type="number" id="customWidth" value="800" min="10" step="1">
-        </div>
-        <div>
-          <label for="customHeight">自訂高度 (px)</label>
-          <input type="number" id="customHeight" value="600" min="10" step="1">
-        </div>
-      </div>
-
-      <div>
-        <label for="fitSelect">3. 裁切與版型</label>
-        <select id="fitSelect">
-          <option value="contain">完整顯示 (置中留白) - 不裁切，背景留白</option>
-          <option value="cover">裁切填滿 (Cover) - 預覽不裁切，下載時裁切紅框內區域</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="formatSelect">4. 輸出格式</label>
-        <select id="formatSelect">
-          <option value="image/jpeg">JPEG (預設極高畫質，完美壓在指定大小內)</option>
-          <option value="image/png">PNG (無損原畫質)</option>
-        </select>
-      </div>
-
-      <div>
-        <label for="maxKbInput">5. 限制檔案大小 (KB)</label>
-        <input type="number" id="maxKbInput" value="400" min="10" step="10">
-      </div>
-
-      <div>
-        <label for="bgColor">6. 留邊背景顏色</label>
-        <input type="color" id="bgColor" value="#ffffff">
-        <div class="checkbox-group">
-          <input type="checkbox" id="autoEdgeColor" checked>
-          <label for="autoEdgeColor">原圖邊緣像素自然延伸填滿</label>
-        </div>
-      </div>
-    </div>
-
-    <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
-      <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 已將起始畫質拉升至 0.99，在許可範圍內盡可能展現最高解析度！</span>
-    </div>
+  <!-- 分頁按鈕 -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-batch">📌 圖片尺寸批次調整</button>
+    <button class="tab-btn" data-tab="tab-merge">🔗 無縫區塊拼貼（不跨區塊顯示）</button>
   </div>
 
-  <div class="preview-grid" id="previewGrid"></div>
+  <!-- 分頁一：圖片尺寸批次調整 -->
+  <div id="tab-batch" class="tab-content active">
+    <div class="panel">
+      <div>
+        <label for="imageInput">1. 選擇圖片（可複選）</label>
+        <input type="file" id="imageInput" accept="image/*" multiple>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label for="sizeSelect">2. 目標尺寸</label>
+          <select id="sizeSelect">
+            <option value="600x450">600 × 450 (4:3)</option>
+            <option value="200x150">200 × 150 (4:3)</option>
+            <option value="400x300">400 × 300 (4:3)</option>
+            <option value="600x500">600 × 500 (6:5)</option>
+            <option value="970x250">970 × 250 (橫幅廣告)</option>
+            <option value="640x360">640 × 360 (16:9)</option>
+            <option value="300x169">300 × 169 (16:9)</option>
+            <option value="320x180">320 × 180 (16:9)</option>
+            <option value="180x320">180 × 320 (9:16 直式)</option>
+            <option value="custom">✏️ 自訂尺寸 (Custom)</option>
+          </select>
+        </div>
+
+        <div id="customSizeGroup" class="custom-size-group">
+          <div>
+            <label for="customWidth">自訂寬度 (px)</label>
+            <input type="number" id="customWidth" value="800" min="10" step="1">
+          </div>
+          <div>
+            <label for="customHeight">自訂高度 (px)</label>
+            <input type="number" id="customHeight" value="600" min="10" step="1">
+          </div>
+        </div>
+
+        <div>
+          <label for="fitSelect">3. 裁切與版型</label>
+          <select id="fitSelect">
+            <option value="contain">完整顯示 (置中留白) - 不裁切，背景留白</option>
+            <option value="cover">裁切填滿 (Cover) - 預覽不裁切，下載時裁切紅框內區域</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="formatSelect">4. 輸出格式</label>
+          <select id="formatSelect">
+            <option value="image/jpeg">JPEG (預設極高畫質，完美壓在指定大小內)</option>
+            <option value="image/png">PNG (無損原畫質)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="maxKbInput">5. 限制檔案大小 (KB)</label>
+          <input type="number" id="maxKbInput" value="400" min="10" step="10">
+        </div>
+
+        <div>
+          <label for="bgColor">6. 留邊背景顏色</label>
+          <input type="color" id="bgColor" value="#ffffff">
+          <div class="checkbox-group">
+            <input type="checkbox" id="autoEdgeColor" checked>
+            <label for="autoEdgeColor">原圖邊緣像素自然延伸填滿</label>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
+        <span class="hint">💡 已將起始畫質拉升至 0.99，在許可範圍內盡可能展現最高解析度！</span>
+      </div>
+    </div>
+
+    <div class="preview-grid" id="previewGrid"></div>
+  </div>
+
+  <!-- 分頁二：無縫區塊拼貼 -->
+  <div id="tab-merge" class="tab-content">
+    <div class="panel">
+      <div>
+        <label for="mergeImageInput">1. 選擇要組合的圖片（支援 1 至 4 張）</label>
+        <input type="file" id="mergeImageInput" accept="image/*" multiple>
+      </div>
+
+      <div class="controls">
+        <div>
+          <label for="mergeLayoutSelect">2. 拼貼版型（無縫獨立區塊）</label>
+          <select id="mergeLayoutSelect">
+            <option value="horizontal">左右並排 (2 個無縫區塊)</option>
+            <option value="vertical">上下並排 (2 個無縫區塊)</option>
+            <option value="triple">三欄並排 (3 個無縫區塊)</option>
+            <option value="quad">四宮格 (4 個無縫區塊)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="mergeSizeSelect">3. 組合畫布尺寸</label>
+          <select id="mergeSizeSelect">
+            <option value="800x600">800 × 600 (4:3)</option>
+            <option value="1280x720">1280 × 720 (16:9)</option>
+            <option value="1000x1000">1000 × 1000 (正方形)</option>
+            <option value="mergeCustom">✏️ 自訂畫布尺寸</option>
+          </select>
+        </div>
+
+        <div id="mergeCustomSizeGroup" class="custom-size-group">
+          <div>
+            <label for="mergeCustomWidth">自訂寬度 (px)</label>
+            <input type="number" id="mergeCustomWidth" value="900" min="10" step="1">
+          </div>
+          <div>
+            <label for="mergeCustomHeight">自訂高度 (px)</label>
+            <input type="number" id="mergeCustomHeight" value="600" min="10" step="1">
+          </div>
+        </div>
+
+        <div>
+          <label for="mergeFormatSelect">4. 輸出格式</label>
+          <select id="mergeFormatSelect">
+            <option value="image/jpeg">JPEG (高畫質，壓在限制內)</option>
+            <option value="image/png">PNG (無損原畫質)</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="mergeMaxKbInput">5. 限制檔案大小 (KB)</label>
+          <input type="number" id="mergeMaxKbInput" value="400" min="10" step="10">
+        </div>
+
+        <div>
+          <label for="mergeBgColor">6. 畫布背景顏色</label>
+          <input type="color" id="mergeBgColor" value="#ffffff">
+        </div>
+      </div>
+
+      <div style="margin-top: 24px;">
+        <span class="hint">✨ 提示：區塊之間無任何間距與分隔線。每張圖片嚴格限制在各自的無縫格子內，點擊圖片可在區塊內調整位置或等比縮放！</span>
+      </div>
+    </div>
+
+    <div class="preview-grid" id="mergePreviewGrid"></div>
+  </div>
 </div>
 
 <script>
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ----------------------------------------------------
+  // 分頁一：批次調整尺寸邏輯
+  // ----------------------------------------------------
   const imageInput = document.getElementById('imageInput');
   const sizeSelect = document.getElementById('sizeSelect');
   const customSizeGroup = document.getElementById('customSizeGroup');
@@ -264,68 +372,48 @@
   let loadedImages = [];
 
   sizeSelect.addEventListener('change', () => {
-    if (sizeSelect.value === 'custom') {
-      customSizeGroup.style.display = 'grid';
-    } else {
-      customSizeGroup.style.display = 'none';
-    }
+    customSizeGroup.style.display = sizeSelect.value === 'custom' ? 'grid' : 'none';
+    renderPreviews();
   });
 
   function getTargetDimensions() {
     if (sizeSelect.value === 'custom') {
-      const w = parseInt(customWidth.value, 10) || 100;
-      const h = parseInt(customHeight.value, 10) || 100;
-      return [w, h];
+      return [parseInt(customWidth.value, 10) || 100, parseInt(customHeight.value, 10) || 100];
     }
     return sizeSelect.value.split('x').map(Number);
   }
 
   function drawExtendedBackground(ctx, img, targetW, targetH, offsetX, offsetY, renderW, renderH) {
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = img.width;
-    tempCanvas.height = img.height;
+    tempCanvas.width = img.width; tempCanvas.height = img.height;
     const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.imageSmoothingEnabled = true;
-    tempCtx.imageSmoothingQuality = 'high';
+    tempCtx.imageSmoothingEnabled = true; tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(img, 0, 0);
 
     ctx.fillStyle = bgColor.value;
     ctx.fillRect(0, 0, targetW, targetH);
 
-    if (offsetY > 0) {
-      ctx.drawImage(tempCanvas, 0, 0, img.width, 1, offsetX, 0, renderW, offsetY);
-    }
-    if (offsetY + renderH < targetH) {
-      const bottomH = targetH - (offsetY + renderH);
-      ctx.drawImage(tempCanvas, 0, img.height - 1, img.width, 1, offsetX, offsetY + renderH, renderW, bottomH);
-    }
-    if (offsetX > 0) {
-      ctx.drawImage(tempCanvas, 0, 0, 1, img.height, 0, 0, offsetX, targetH);
-    }
-    if (offsetX + renderW < targetW) {
-      const rightW = targetW - (offsetX + renderW);
-      ctx.drawImage(tempCanvas, img.width - 1, 0, 1, img.height, offsetX + renderW, 0, rightW, targetH);
-    }
+    if (offsetY > 0) ctx.drawImage(tempCanvas, 0, 0, img.width, 1, offsetX, 0, renderW, offsetY);
+    if (offsetY + renderH < targetH) ctx.drawImage(tempCanvas, 0, img.height - 1, img.width, 1, offsetX, offsetY + renderH, renderW, targetH - (offsetY + renderH));
+    if (offsetX > 0) ctx.drawImage(tempCanvas, 0, 0, 1, img.height, 0, 0, offsetX, targetH);
+    if (offsetX + renderW < targetW) ctx.drawImage(tempCanvas, img.width - 1, 0, 1, img.height, offsetX + renderW, 0, targetW - (offsetX + renderW), targetH);
   }
 
   imageInput.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
+    if (files.length === 0) return;
     loadedImages = [];
     previewGrid.innerHTML = '';
 
+    let loadedCount = 0;
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          loadedImages.push({
-            name: file.name,
-            img: img,
-            origSize: file.size,
-            offsetX: null,
-            offsetY: null
-          });
-          renderPreviews();
+          loadedImages.push({ name: file.name, img: img, origSize: file.size, offsetX: null, offsetY: null });
+          loadedCount++;
+          if (loadedCount === files.length) renderPreviews();
         };
         img.src = event.target.result;
       };
@@ -333,44 +421,29 @@
     });
   });
 
-  [sizeSelect, customWidth, customHeight, fitSelect, formatSelect, maxKbInput, bgColor, autoEdgeColor].forEach(element => {
-    element.addEventListener('change', () => {
-      loadedImages.forEach(item => {
-        item.offsetX = null;
-        item.offsetY = null;
-      });
+  [customWidth, customHeight, fitSelect, formatSelect, maxKbInput, bgColor, autoEdgeColor].forEach(el => {
+    el.addEventListener('change', () => {
+      loadedImages.forEach(item => { item.offsetX = null; item.offsetY = null; });
       renderPreviews();
     });
   });
 
   function getBase64SizeBytes(dataUrl) {
     const head = dataUrl.substring(0, dataUrl.indexOf(',') + 1);
-    const strLen = dataUrl.length - head.length;
-    return Math.round(strLen * 3 / 4);
+    return Math.round((dataUrl.length - head.length) * 3 / 4);
   }
 
-  // 將起始測試畫質提升至 0.99，在 400KB 限制內保留極致清晰度
   function getMaxResolutionExport(canvas, format, maxBytes) {
-    if (format === 'image/png') {
-      const url = canvas.toDataURL(format);
-      return { quality: 1.0, dataUrl: url };
-    }
-
+    if (format === 'image/png') return { quality: 1.0, dataUrl: canvas.toDataURL(format) };
     let bestQuality = 0.99;
     let bestDataUrl = canvas.toDataURL(format, bestQuality);
+    if (getBase64SizeBytes(bestDataUrl) <= maxBytes) return { quality: bestQuality, dataUrl: bestDataUrl };
 
-    if (getBase64SizeBytes(bestDataUrl) <= maxBytes) {
-      return { quality: bestQuality, dataUrl: bestDataUrl };
-    }
-
-    let low = 0.6;
-    let high = 0.99;
+    let low = 0.6, high = 0.99;
     for (let i = 0; i < 15; i++) {
       const mid = (low + high) / 2;
       const testUrl = canvas.toDataURL(format, mid);
-      const testSize = getBase64SizeBytes(testUrl);
-
-      if (testSize <= maxBytes) {
+      if (getBase64SizeBytes(testUrl) <= maxBytes) {
         bestQuality = mid;
         bestDataUrl = testUrl;
         low = mid;
@@ -378,220 +451,454 @@
         high = mid;
       }
     }
-
     return { quality: bestQuality, dataUrl: bestDataUrl };
   }
 
   function renderPreviews() {
     previewGrid.innerHTML = '';
+    if (loadedImages.length === 0) return;
     const [targetW, targetH] = getTargetDimensions();
     const fitMode = fitSelect.value;
     const format = formatSelect.value;
-    const maxKb = parseFloat(maxKbInput.value) || 400;
-    const maxBytes = maxKb * 1024;
+    const maxBytes = (parseFloat(maxKbInput.value) || 400) * 1024;
 
-    loadedImages.forEach((item) => {
+    loadedImages.forEach(item => {
       const card = document.createElement('div');
       card.className = 'preview-card';
-
       const canvasContainer = document.createElement('div');
       canvasContainer.className = 'canvas-container';
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
 
       const img = item.img;
-      
       let renderW, renderH, viewCanvasW, viewCanvasH;
 
       if (fitMode === 'contain') {
-        const scaleW = targetW / img.width;
-        const scaleH = targetH / img.height;
-        const scale = Math.min(scaleW, scaleH);
-        renderW = img.width * scale;
-        renderH = img.height * scale;
-        viewCanvasW = targetW;
-        viewCanvasH = targetH;
+        const scale = Math.min(targetW / img.width, targetH / img.height);
+        renderW = img.width * scale; renderH = img.height * scale;
+        viewCanvasW = targetW; viewCanvasH = targetH;
       } else {
-        const scaleW = targetW / img.width;
-        const scaleH = targetH / img.height;
-        const scale = Math.max(scaleW, scaleH);
-        renderW = img.width * scale;
-        renderH = img.height * scale;
-
-        viewCanvasW = Math.max(targetW, renderW);
-        viewCanvasH = Math.max(targetH, renderH);
+        const scale = Math.max(targetW / img.width, targetH / img.height);
+        renderW = img.width * scale; renderH = img.height * scale;
+        viewCanvasW = Math.max(targetW, renderW); viewCanvasH = Math.max(targetH, renderH);
       }
 
-      canvas.width = viewCanvasW;
-      canvas.height = viewCanvasH;
-
+      canvas.width = viewCanvasW; canvas.height = viewCanvasH;
       if (item.offsetX === null) item.offsetX = (viewCanvasW - renderW) / 2;
       if (item.offsetY === null) item.offsetY = (viewCanvasH - renderH) / 2;
 
       const drawCanvas = () => {
         ctx.clearRect(0, 0, viewCanvasW, viewCanvasH);
-
         if (fitMode === 'contain') {
-          if (autoEdgeColor.checked) {
-            drawExtendedBackground(ctx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
-          } else {
-            ctx.fillStyle = bgColor.value;
-            ctx.fillRect(0, 0, targetW, targetH);
-          }
+          if (autoEdgeColor.checked) drawExtendedBackground(ctx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
+          else { ctx.fillStyle = bgColor.value; ctx.fillRect(0, 0, targetW, targetH); }
           ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
-
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(0, 0, targetW, targetH);
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, targetW, targetH);
         } else {
           ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
-
-          const cropX = (viewCanvasW - targetW) / 2;
-          const cropY = (viewCanvasH - targetH) / 2;
-
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+          const cropX = (viewCanvasW - targetW) / 2, cropY = (viewCanvasH - targetH) / 2;
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
           ctx.fillRect(0, 0, viewCanvasW, cropY);
           ctx.fillRect(0, cropY + targetH, viewCanvasW, viewCanvasH - (cropY + targetH));
           ctx.fillRect(0, cropY, cropX, targetH);
           ctx.fillRect(cropX + targetW, cropY, viewCanvasW - (cropX + targetW), targetH);
-
-          ctx.strokeStyle = '#ef4444';
-          ctx.lineWidth = 4;
-          ctx.strokeRect(cropX, cropY, targetW, targetH);
+          ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4; ctx.strokeRect(cropX, cropY, targetW, targetH);
         }
       };
 
       drawCanvas();
       canvasContainer.appendChild(canvas);
 
-      let isDragging = false;
-      let startX, startY;
-
-      canvas.style.cursor = 'move';
+      let isDragging = false, startX, startY;
       canvas.addEventListener('mousedown', (e) => {
         isDragging = true;
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
-        startX = e.clientX * scaleX - item.offsetX;
-        startY = e.clientY * scaleY - item.offsetY;
+        startX = e.clientX * (canvas.width / rect.width) - item.offsetX;
+        startY = e.clientY * (canvas.height / rect.height) - item.offsetY;
       });
-
       window.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-
-        item.offsetX = e.clientX * scaleX - startX;
-        item.offsetY = e.clientY * scaleY - startY;
-
+        item.offsetX = e.clientX * (canvas.width / rect.width) - startX;
+        item.offsetY = e.clientY * (canvas.height / rect.height) - startY;
         drawCanvas();
-        updateMetaAndDownloadBtn();
+        updateMeta();
       });
-
-      window.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          renderPreviews();
-        }
-      });
+      window.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; renderPreviews(); } });
 
       const generateExportCanvas = () => {
-        const exportCanvas = document.createElement('canvas');
-        exportCanvas.width = targetW;
-        exportCanvas.height = targetH;
-        const exportCtx = exportCanvas.getContext('2d');
-        exportCtx.imageSmoothingEnabled = true;
-        exportCtx.imageSmoothingQuality = 'high';
-
+        const expCanvas = document.createElement('canvas');
+        expCanvas.width = targetW; expCanvas.height = targetH;
+        const expCtx = expCanvas.getContext('2d');
+        expCtx.imageSmoothingEnabled = true; expCtx.imageSmoothingQuality = 'high';
         if (fitMode === 'contain') {
-          if (autoEdgeColor.checked) {
-            drawExtendedBackground(exportCtx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
-          } else {
-            exportCtx.fillStyle = bgColor.value;
-            exportCtx.fillRect(0, 0, targetW, targetH);
-          }
-          exportCtx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
+          if (autoEdgeColor.checked) drawExtendedBackground(expCtx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
+          else { expCtx.fillStyle = bgColor.value; expCtx.fillRect(0, 0, targetW, targetH); }
+          expCtx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
         } else {
-          const cropX = (viewCanvasW - targetW) / 2;
-          const cropY = (viewCanvasH - targetH) / 2;
-          const drawX = item.offsetX - cropX;
-          const drawY = item.offsetY - cropY;
-
-          exportCtx.fillStyle = bgColor.value;
-          exportCtx.fillRect(0, 0, targetW, targetH);
-          exportCtx.drawImage(img, drawX, drawY, renderW, renderH);
+          const cropX = (viewCanvasW - targetW) / 2, cropY = (viewCanvasH - targetH) / 2;
+          expCtx.fillStyle = bgColor.value; expCtx.fillRect(0, 0, targetW, targetH);
+          expCtx.drawImage(img, item.offsetX - cropX, item.offsetY - cropY, renderW, renderH);
         }
-
-        return exportCanvas;
-      };
-
-      const getOptimizedExportResult = () => {
-        const expCanvas = generateExportCanvas();
-        return getMaxResolutionExport(expCanvas, format, maxBytes);
+        return expCanvas;
       };
 
       const meta = document.createElement('div');
       meta.className = 'card-meta';
-
-      const updateMetaAndDownloadBtn = () => {
-        const result = getOptimizedExportResult();
-        let curSizeKB = (getBase64SizeBytes(result.dataUrl) / 1024).toFixed(1);
-        let qPercent = (result.quality * 100).toFixed(1);
-
-        meta.innerHTML = `
-          <div>檔名：${item.name}</div>
-          <div>尺寸：<span>${targetW} × ${targetH}</span></div>
-          <div>大小：<span style="color: ${parseFloat(curSizeKB) <= maxKb ? '#166534' : '#dc2626'}; font-weight: bold;">${curSizeKB} KB</span> 
-            <span class="badge ${parseFloat(curSizeKB) <= maxKb ? 'badge-success' : ''}">${parseFloat(curSizeKB) <= maxKb ? '高解析清晰 (≤' + maxKb + 'KB)' : '超出上限'}</span>
-          </div>
-          ${format !== 'image/png' ? `<div>輸出畫質：<span>${qPercent}%</span></div>` : ''}
-        `;
+      const updateMeta = () => {
+        const res = getMaxResolutionExport(generateExportCanvas(), format, maxBytes);
+        const kb = (getBase64SizeBytes(res.dataUrl) / 1024).toFixed(1);
+        meta.innerHTML = `<div>檔名：${item.name}</div><div>尺寸：<span>${targetW} × ${targetH}</span></div><div>大小：<span>${kb} KB</span></div>`;
       };
-
-      updateMetaAndDownloadBtn();
+      updateMeta();
 
       const downloadBtn = document.createElement('button');
       downloadBtn.className = 'btn';
       downloadBtn.style.padding = '8px 16px';
-      downloadBtn.style.fontSize = '0.9rem';
-      downloadBtn.innerText = '下載裁切後圖片';
-
-      const ext = format.split('/')[1];
-      const filename = `${targetW}x${targetH}_${item.name.substring(0, item.name.lastIndexOf('.')) || item.name}.${ext}`;
-
+      downloadBtn.innerText = '下載此圖片';
       downloadBtn.onclick = () => {
-        const finalResult = getOptimizedExportResult();
-        downloadImage(finalResult.dataUrl, filename);
+        const res = getMaxResolutionExport(generateExportCanvas(), format, maxBytes);
+        const link = document.createElement('a');
+        link.download = `${targetW}x${targetH}_${item.name}`;
+        link.href = res.dataUrl;
+        link.click();
       };
 
       card.appendChild(canvasContainer);
       card.appendChild(meta);
       card.appendChild(downloadBtn);
-
       previewGrid.appendChild(card);
     });
   }
 
-  function downloadImage(dataUrl, filename) {
-    const link = document.createElement('a');
-    link.download = filename;
-    link.href = dataUrl;
-    link.click();
-  }
-
   downloadAllBtn.addEventListener('click', () => {
-    const cards = previewGrid.querySelectorAll('.preview-card');
-    cards.forEach((card, i) => {
-      const btn = card.querySelector('button');
-      setTimeout(() => btn.click(), i * 250);
+    previewGrid.querySelectorAll('.preview-card button').forEach((btn, i) => setTimeout(() => btn.click(), i * 250));
+  });
+
+
+  // ----------------------------------------------------
+  // 分頁二：無縫嚴格區塊拼貼邏輯
+  // ----------------------------------------------------
+  const mergeImageInput = document.getElementById('mergeImageInput');
+  const mergeLayoutSelect = document.getElementById('mergeLayoutSelect');
+  const mergeSizeSelect = document.getElementById('mergeSizeSelect');
+  const mergeCustomSizeGroup = document.getElementById('mergeCustomSizeGroup');
+  const mergeCustomWidth = document.getElementById('mergeCustomWidth');
+  const mergeCustomHeight = document.getElementById('mergeCustomHeight');
+  const mergeFormatSelect = document.getElementById('mergeFormatSelect');
+  const mergeMaxKbInput = document.getElementById('mergeMaxKbInput');
+  const mergeBgColor = document.getElementById('mergeBgColor');
+  const mergePreviewGrid = document.getElementById('mergePreviewGrid');
+
+  let mergeImages = [];
+  let mergeLayers = [];
+  let selectedLayerIdx = -1;
+  let activeAction = null; 
+
+  let mergeCardDom = null;
+  let mergeCanvas = null;
+  let mergeCtx = null;
+  let mergeMetaDiv = null;
+
+  mergeSizeSelect.addEventListener('change', () => {
+    mergeCustomSizeGroup.style.display = mergeSizeSelect.value === 'mergeCustom' ? 'grid' : 'none';
+    updateMergeCanvasSize();
+    initMergeLayers();
+    redrawMergeScene();
+  });
+
+  mergeLayoutSelect.addEventListener('change', () => {
+    initMergeLayers();
+    redrawMergeScene();
+  });
+
+  [mergeCustomWidth, mergeCustomHeight, mergeFormatSelect, mergeMaxKbInput, mergeBgColor].forEach(el => {
+    el.addEventListener('change', () => {
+      updateMergeCanvasSize();
+      redrawMergeScene();
     });
   });
+
+  function getMergeDimensions() {
+    if (mergeSizeSelect.value === 'mergeCustom') {
+      return [parseInt(mergeCustomWidth.value, 10) || 800, parseInt(mergeCustomHeight.value, 10) || 600];
+    }
+    return mergeSizeSelect.value.split('x').map(Number);
+  }
+
+  function getLayoutBoxes(tw, th) {
+    const layout = mergeLayoutSelect.value;
+    const gap = 0; // 區塊間距設為 0，無縫連接無分隔線
+    if (layout === 'horizontal') {
+      const w = tw / 2;
+      return [
+        { x: 0, y: 0, width: w, height: th },
+        { x: w, y: 0, width: tw - w, height: th }
+      ];
+    } else if (layout === 'vertical') {
+      const h = th / 2;
+      return [
+        { x: 0, y: 0, width: tw, height: h },
+        { x: 0, y: h, width: tw, height: th - h }
+      ];
+    } else if (layout === 'triple') {
+      const w1 = tw / 3;
+      const w2 = tw / 3;
+      return [
+        { x: 0, y: 0, width: w1, height: th },
+        { x: w1, y: 0, width: w2, height: th },
+        { x: w1 + w2, y: 0, width: tw - (w1 + w2), height: th }
+      ];
+    } else {
+      const w = tw / 2;
+      const h = th / 2;
+      return [
+        { x: 0, y: 0, width: w, height: h },
+        { x: w, y: 0, width: tw - w, height: h },
+        { x: 0, y: h, width: w, height: th - h },
+        { x: w, y: h, width: tw - w, height: th - h }
+      ];
+    }
+  }
+
+  function initMergeLayers() {
+    const [tw, th] = getMergeDimensions();
+    const boxes = getLayoutBoxes(tw, th);
+
+    mergeLayers = mergeImages.map((item, idx) => {
+      const box = boxes[idx % boxes.length];
+      const img = item.img;
+      const scale = Math.max(box.width / img.width, box.height / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      return {
+        boxIdx: idx % boxes.length, 
+        x: box.x + (box.width - dw) / 2,
+        y: box.y + (box.height - dh) / 2,
+        width: dw,
+        height: dh,
+        aspect: img.height / img.width
+      };
+    });
+    selectedLayerIdx = mergeLayers.length > 0 ? 0 : -1;
+  }
+
+  mergeImageInput.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    mergeImages = [];
+    mergePreviewGrid.innerHTML = '';
+
+    let count = 0;
+    files.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          mergeImages[idx] = { name: file.name, img: img };
+          count++;
+          if (count === files.length) {
+            initMergeLayers();
+            createMergeUI();
+            redrawMergeScene();
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  function createMergeUI() {
+    mergePreviewGrid.innerHTML = '';
+    const [tw, th] = getMergeDimensions();
+
+    mergeCardDom = document.createElement('div');
+    mergeCardDom.className = 'preview-card';
+    mergeCardDom.style.gridColumn = '1 / -1';
+
+    const container = document.createElement('div');
+    container.className = 'canvas-container';
+
+    mergeCanvas = document.createElement('canvas');
+    mergeCanvas.width = tw; mergeCanvas.height = th;
+    mergeCtx = mergeCanvas.getContext('2d');
+    mergeCtx.imageSmoothingEnabled = true; mergeCtx.imageSmoothingQuality = 'high';
+
+    container.appendChild(mergeCanvas);
+
+    mergeMetaDiv = document.createElement('div');
+    mergeMetaDiv.className = 'card-meta';
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'btn';
+    downloadBtn.style.padding = '8px 16px';
+    downloadBtn.innerText = '下載組合後圖片';
+    downloadBtn.onclick = () => {
+      const oldSelected = selectedLayerIdx;
+      selectedLayerIdx = -1;
+      redrawMergeScene();
+
+      const format = mergeFormatSelect.value;
+      const maxBytes = (parseFloat(mergeMaxKbInput.value) || 400) * 1024;
+      const res = getMaxResolutionExport(mergeCanvas, format, maxBytes);
+      const link = document.createElement('a');
+      link.download = `merged_${tw}x${th}.${format.split('/')[1]}`;
+      link.href = res.dataUrl;
+      link.click();
+
+      selectedLayerIdx = oldSelected;
+      redrawMergeScene();
+    };
+
+    mergeCardDom.appendChild(container);
+    mergeCardDom.appendChild(mergeMetaDiv);
+    mergeCardDom.appendChild(downloadBtn);
+    mergePreviewGrid.appendChild(mergeCardDom);
+
+    mergeCanvas.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
+
+    let startX = 0, startY = 0, initialLayer = null;
+
+    mergeCanvas.addEventListener('mousedown', (e) => {
+      const rect = mergeCanvas.getBoundingClientRect();
+      const pos = {
+        x: (e.clientX - rect.left) * (mergeCanvas.width / rect.width),
+        y: (e.clientY - rect.top) * (mergeCanvas.height / rect.height)
+      };
+      activeAction = null;
+
+      if (selectedLayerIdx !== -1) {
+        const l = mergeLayers[selectedLayerIdx];
+        const hs = 14;
+        if (Math.abs(pos.x - l.x) < hs && Math.abs(pos.y - l.y) < hs) activeAction = 'resize-nw';
+        else if (Math.abs(pos.x - (l.x + l.width)) < hs && Math.abs(pos.y - l.y) < hs) activeAction = 'resize-ne';
+        else if (Math.abs(pos.x - l.x) < hs && Math.abs(pos.y - (l.y + l.height)) < hs) activeAction = 'resize-sw';
+        else if (Math.abs(pos.x - (l.x + l.width)) < hs && Math.abs(pos.y - (l.y + l.height)) < hs) activeAction = 'resize-se';
+      }
+
+      if (!activeAction) {
+        let clickedIdx = -1;
+        for (let i = mergeLayers.length - 1; i >= 0; i--) {
+          const l = mergeLayers[i];
+          if (pos.x >= l.x && pos.x <= l.x + l.width && pos.y >= l.y && pos.y <= l.y + l.height) {
+            clickedIdx = i;
+            break;
+          }
+        }
+        if (clickedIdx !== -1) {
+          selectedLayerIdx = clickedIdx;
+          activeAction = 'drag';
+        } else {
+          selectedLayerIdx = -1;
+        }
+      }
+
+      if (selectedLayerIdx !== -1) {
+        startX = pos.x;
+        startY = pos.y;
+        initialLayer = { ...mergeLayers[selectedLayerIdx] };
+      }
+      redrawMergeScene();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!activeAction || selectedLayerIdx === -1) return;
+      const rect = mergeCanvas.getBoundingClientRect();
+      const pos = {
+        x: (e.clientX - rect.left) * (mergeCanvas.width / rect.width),
+        y: (e.clientY - rect.top) * (mergeCanvas.height / rect.height)
+      };
+      const l = mergeLayers[selectedLayerIdx];
+      const dx = pos.x - startX;
+      const dy = pos.y - startY;
+
+      if (activeAction === 'drag') {
+        l.x = initialLayer.x + dx;
+        l.y = initialLayer.y + dy;
+      } else {
+        let newW = initialLayer.width;
+        if (activeAction === 'resize-se') {
+          newW = Math.max(30, initialLayer.width + dx);
+        } else if (activeAction === 'resize-sw') {
+          newW = Math.max(30, initialLayer.width - dx);
+          l.x = initialLayer.x + (initialLayer.width - newW);
+        } else if (activeAction === 'resize-ne') {
+          newW = Math.max(30, initialLayer.width + dx);
+        } else if (activeAction === 'resize-nw') {
+          newW = Math.max(30, initialLayer.width - dx);
+          l.x = initialLayer.x + (initialLayer.width - newW);
+        }
+
+        const newH = newW * l.aspect;
+        if (activeAction === 'resize-nw' || activeAction === 'resize-ne') {
+          l.y = initialLayer.y + (initialLayer.height - newH);
+        }
+        l.width = newW;
+        l.height = newH;
+      }
+
+      redrawMergeScene();
+    });
+
+    window.addEventListener('mouseup', () => {
+      activeAction = null;
+    });
+  }
+
+  function updateMergeCanvasSize() {
+    if (!mergeCanvas) return;
+    const [tw, th] = getMergeDimensions();
+    mergeCanvas.width = tw;
+    mergeCanvas.height = th;
+  }
+
+  function redrawMergeScene() {
+    if (!mergeCtx || !mergeCanvas) return;
+    const [tw, th] = getMergeDimensions();
+    const bgColorVal = mergeBgColor.value;
+    const format = mergeFormatSelect.value;
+    const maxBytes = (parseFloat(mergeMaxKbInput.value) || 400) * 1024;
+    const boxes = getLayoutBoxes(tw, th);
+
+    mergeCtx.clearRect(0, 0, tw, th);
+    mergeCtx.fillStyle = bgColorVal;
+    mergeCtx.fillRect(0, 0, tw, th);
+
+    // 套用嚴格的區塊裁切遮罩（Clipping Mask），確保無縫且不跨區塊
+    mergeLayers.forEach((l, idx) => {
+      const box = boxes[l.boxIdx];
+
+      mergeCtx.save();
+      mergeCtx.beginPath();
+      mergeCtx.rect(box.x, box.y, box.width, box.height);
+      mergeCtx.clip();
+
+      mergeCtx.drawImage(mergeImages[idx].img, l.x, l.y, l.width, l.height);
+
+      if (idx === selectedLayerIdx) {
+        mergeCtx.strokeStyle = '#2563eb';
+        mergeCtx.lineWidth = 2;
+        mergeCtx.strokeRect(l.x, l.y, l.width, l.height);
+
+        const hs = 10;
+        mergeCtx.fillStyle = '#2563eb';
+        mergeCtx.fillRect(l.x - hs/2, l.y - hs/2, hs, hs); 
+        mergeCtx.fillRect(l.x + l.width - hs/2, l.y - hs/2, hs, hs); 
+        mergeCtx.fillRect(l.x - hs/2, l.y + l.height - hs/2, hs, hs); 
+        mergeCtx.fillRect(l.x + l.width - hs/2, l.y + l.height - hs/2, hs, hs); 
+      }
+      mergeCtx.restore();
+    });
+
+    if (mergeMetaDiv) {
+      const res = getMaxResolutionExport(mergeCanvas, format, maxBytes);
+      const kb = (getBase64SizeBytes(res.dataUrl) / 1024).toFixed(1);
+      mergeMetaDiv.innerHTML = `<div>合成畫布尺寸：<span>${tw} × ${th} px</span> (提示：無縫區塊拼貼，圖片不跨區塊顯示)</div><div>檔案大小：<span>${kb} KB</span></div>`;
+    }
+  }
 </script>
 
 </body>
