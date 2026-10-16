@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>圖片尺寸批次調整工具 (400KB 上限最高畫質 - 紅框顯眼預覽版)</title>
+  <title>圖片尺寸批次調整工具 (400KB 上限最高畫質 - 邊緣像素自然延伸版)</title>
   
   <!-- 加入網頁小圖示 (Favicon) 設定 -->
   <link rel="icon" type="image/png" href="favicon.png">
@@ -68,6 +68,26 @@
       padding: 16px;
       border-radius: 8px;
       border: 1px dashed var(--border);
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      background: #f8fafc;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    .checkbox-group label {
+      margin-bottom: 0;
+      cursor: pointer;
+      font-weight: normal;
     }
     .btn {
       background: var(--primary);
@@ -213,12 +233,16 @@
       <div>
         <label for="bgColor">6. 留邊背景顏色</label>
         <input type="color" id="bgColor" value="#ffffff">
+        <div class="checkbox-group">
+          <input type="checkbox" id="autoEdgeColor">
+          <label for="autoEdgeColor">原圖邊緣像素自然延伸填滿</label>
+        </div>
       </div>
     </div>
 
     <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
       <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 醒目紅色實線框即為最終下載裁切範圍，拖曳圖片可精準調整位置！</span>
+      <span class="hint">💡 勾選後，留邊處將自動以原圖邊緣像素拉伸填滿，不再是單調純色！</span>
     </div>
   </div>
 
@@ -235,6 +259,7 @@
   const formatSelect = document.getElementById('formatSelect');
   const maxKbInput = document.getElementById('maxKbInput');
   const bgColor = document.getElementById('bgColor');
+  const autoEdgeColor = document.getElementById('autoEdgeColor');
   const previewGrid = document.getElementById('previewGrid');
   const downloadAllBtn = document.getElementById('downloadAllBtn');
 
@@ -255,6 +280,39 @@
       return [w, h];
     }
     return sizeSelect.value.split('x').map(Number);
+  }
+
+  // 繪製原圖邊緣像素自然延伸填滿背景
+  function drawExtendedBackground(ctx, img, targetW, targetH, offsetX, offsetY, renderW, renderH) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = img.width;
+    tempCanvas.height = img.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(img, 0, 0);
+
+    // 1. 填滿預設底色作為底襯
+    ctx.fillStyle = bgColor.value;
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    // 2. 利用原圖四個邊緣最外側 1px 的像素向外拉伸填滿留白區域
+    // 上方延伸
+    if (offsetY > 0) {
+      ctx.drawImage(tempCanvas, 0, 0, img.width, 1, offsetX, 0, renderW, offsetY);
+    }
+    // 下方延伸
+    if (offsetY + renderH < targetH) {
+      const bottomH = targetH - (offsetY + renderH);
+      ctx.drawImage(tempCanvas, 0, img.height - 1, img.width, 1, offsetX, offsetY + renderH, renderW, bottomH);
+    }
+    // 左方延伸
+    if (offsetX > 0) {
+      ctx.drawImage(tempCanvas, 0, 0, 1, img.height, 0, 0, offsetX, targetH);
+    }
+    // 右方延伸
+    if (offsetX + renderW < targetW) {
+      const rightW = targetW - (offsetX + renderW);
+      ctx.drawImage(tempCanvas, img.width - 1, 0, 1, img.height, offsetX + renderW, 0, rightW, targetH);
+    }
   }
 
   imageInput.addEventListener('change', (e) => {
@@ -282,7 +340,7 @@
     });
   });
 
-  [sizeSelect, customWidth, customHeight, fitSelect, formatSelect, maxKbInput, bgColor].forEach(element => {
+  [sizeSelect, customWidth, customHeight, fitSelect, formatSelect, maxKbInput, bgColor, autoEdgeColor].forEach(element => {
     element.addEventListener('change', () => {
       loadedImages.forEach(item => {
         item.offsetX = null;
@@ -332,7 +390,6 @@
     const format = formatSelect.value;
     const maxKb = parseFloat(maxKbInput.value) || 400;
     const maxBytes = maxKb * 1024;
-    const bg = bgColor.value;
 
     loadedImages.forEach((item) => {
       const card = document.createElement('div');
@@ -377,11 +434,14 @@
         ctx.clearRect(0, 0, viewCanvasW, viewCanvasH);
 
         if (fitMode === 'contain') {
-          ctx.fillStyle = bg;
-          ctx.fillRect(0, 0, targetW, targetH);
+          if (autoEdgeColor.checked) {
+            drawExtendedBackground(ctx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
+          } else {
+            ctx.fillStyle = bgColor.value;
+            ctx.fillRect(0, 0, targetW, targetH);
+          }
           ctx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
 
-          // 完整顯示模式邊框保持黑色
           ctx.strokeStyle = '#000000';
           ctx.lineWidth = 2;
           ctx.strokeRect(0, 0, targetW, targetH);
@@ -391,14 +451,12 @@
           const cropX = (viewCanvasW - targetW) / 2;
           const cropY = (viewCanvasH - targetH) / 2;
 
-          // 框外加深半透明暗色遮罩，凸顯裁切區
           ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
           ctx.fillRect(0, 0, viewCanvasW, cropY);
           ctx.fillRect(0, cropY + targetH, viewCanvasW, viewCanvasH - (cropY + targetH));
           ctx.fillRect(0, cropY, cropX, targetH);
           ctx.fillRect(cropX + targetW, cropY, viewCanvasW - (cropX + targetW), targetH);
 
-          // 顯眼的鮮紅色實線裁切畫框
           ctx.strokeStyle = '#ef4444';
           ctx.lineWidth = 4;
           ctx.strokeRect(cropX, cropY, targetW, targetH);
@@ -449,8 +507,12 @@
         const exportCtx = exportCanvas.getContext('2d');
 
         if (fitMode === 'contain') {
-          exportCtx.fillStyle = bg;
-          exportCtx.fillRect(0, 0, targetW, targetH);
+          if (autoEdgeColor.checked) {
+            drawExtendedBackground(exportCtx, img, targetW, targetH, item.offsetX, item.offsetY, renderW, renderH);
+          } else {
+            exportCtx.fillStyle = bgColor.value;
+            exportCtx.fillRect(0, 0, targetW, targetH);
+          }
           exportCtx.drawImage(img, item.offsetX, item.offsetY, renderW, renderH);
         } else {
           const cropX = (viewCanvasW - targetW) / 2;
@@ -458,7 +520,7 @@
           const drawX = item.offsetX - cropX;
           const drawY = item.offsetY - cropY;
 
-          exportCtx.fillStyle = bg;
+          exportCtx.fillStyle = bgColor.value;
           exportCtx.fillRect(0, 0, targetW, targetH);
           exportCtx.drawImage(img, drawX, drawY, renderW, renderH);
         }
