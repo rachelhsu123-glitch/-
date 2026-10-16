@@ -398,6 +398,7 @@
 
   sizeSelect.addEventListener('change', () => {
     customSizeGroup.style.display = sizeSelect.value === 'custom' ? 'grid' : 'none';
+    loadedImages.forEach(item => { item.offsetX = null; item.offsetY = null; });
     renderPreviews();
   });
 
@@ -487,7 +488,7 @@
     const format = formatSelect.value;
     const maxBytes = (parseFloat(maxKbInput.value) || 400) * 1024;
 
-    loadedImages.forEach(item => {
+    loadedImages.forEach((item, index) => {
       const card = document.createElement('div');
       card.className = 'preview-card';
       const canvasContainer = document.createElement('div');
@@ -511,6 +512,7 @@
       }
 
       canvas.width = viewCanvasW; canvas.height = viewCanvasH;
+      
       if (item.offsetX === null) item.offsetX = (viewCanvasW - renderW) / 2;
       if (item.offsetY === null) item.offsetY = (viewCanvasH - renderH) / 2;
 
@@ -585,8 +587,10 @@
       downloadBtn.innerText = '下載此圖片';
       downloadBtn.onclick = () => {
         const res = getMaxResolutionExport(generateExportCanvas(), format, maxBytes);
+        const ext = format === 'image/png' ? 'png' : 'jpg';
         const link = document.createElement('a');
-        link.download = `${targetW}x${targetH}_${item.name}`;
+        // 多圖時自動加上編號區隔（例如 400x300_1.jpg, 400x300_2.jpg），單張則直接命名為尺寸名稱
+        link.download = loadedImages.length > 1 ? `${targetW}x${targetH}_${index + 1}.${ext}` : `${targetW}x${targetH}.${ext}`;
         link.href = res.dataUrl;
         link.click();
       };
@@ -798,8 +802,9 @@
       const format = mergeFormatSelect.value;
       const maxBytes = (parseFloat(mergeMaxKbInput.value) || 400) * 1024;
       const res = getMaxResolutionExport(mergeCanvas, format, maxBytes);
+      const ext = format === 'image/png' ? 'png' : 'jpg';
       const link = document.createElement('a');
-      link.download = `merged_${tw}x${th}.${format.split('/')[1]}`;
+      link.download = `${tw}x${th}.${ext}`;
       link.href = res.dataUrl;
       link.click();
 
