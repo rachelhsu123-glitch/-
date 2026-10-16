@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>圖片尺寸批次調整工具</title>
   
-  <!-- 加入網頁小圖示 (Favicon) 設定 -->
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="favicon.png">
 
@@ -219,8 +218,7 @@
       <div>
         <label for="formatSelect">4. 輸出格式</label>
         <select id="formatSelect">
-          <option value="image/jpeg">JPEG (預設高畫質 0.92)</option>
-          <option value="image/webp">WebP (高壓縮率)</option>
+          <option value="image/jpeg">JPEG (預設極高畫質，完美壓在指定大小內)</option>
           <option value="image/png">PNG (無損原畫質)</option>
         </select>
       </div>
@@ -234,7 +232,7 @@
         <label for="bgColor">6. 留邊背景顏色</label>
         <input type="color" id="bgColor" value="#ffffff">
         <div class="checkbox-group">
-          <input type="checkbox" id="autoEdgeColor">
+          <input type="checkbox" id="autoEdgeColor" checked>
           <label for="autoEdgeColor">原圖邊緣像素自然延伸填滿</label>
         </div>
       </div>
@@ -242,7 +240,7 @@
 
     <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center;">
       <button class="btn" id="downloadAllBtn">批次下載全部圖片</button>
-      <span class="hint">💡 已提升預設輸出畫質，避免大圖縮小產生鋸齒與失真！</span>
+      <span class="hint">💡 已將起始畫質拉升至 0.99，在許可範圍內盡可能展現最高解析度！</span>
     </div>
   </div>
 
@@ -287,6 +285,8 @@
     tempCanvas.width = img.width;
     tempCanvas.height = img.height;
     const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(img, 0, 0);
 
     ctx.fillStyle = bgColor.value;
@@ -349,24 +349,23 @@
     return Math.round(strLen * 3 / 4);
   }
 
-  // 優先維持高畫質 (預設 0.92)，僅在超過指定容量上限時才進行微幅壓縮
-  function getHighQualityExport(canvas, format, maxBytes) {
+  // 將起始測試畫質提升至 0.99，在 400KB 限制內保留極致清晰度
+  function getMaxResolutionExport(canvas, format, maxBytes) {
     if (format === 'image/png') {
-      return { quality: 1.0, dataUrl: canvas.toDataURL(format) };
+      const url = canvas.toDataURL(format);
+      return { quality: 1.0, dataUrl: url };
     }
 
-    // 先以高品質 0.92 測試
-    let bestQuality = 0.92;
+    let bestQuality = 0.99;
     let bestDataUrl = canvas.toDataURL(format, bestQuality);
 
     if (getBase64SizeBytes(bestDataUrl) <= maxBytes) {
       return { quality: bestQuality, dataUrl: bestDataUrl };
     }
 
-    // 若超過容量限制，透過二分法尋找能在限制內的最大畫質
-    let low = 0.1;
-    let high = 0.92;
-    for (let i = 0; i < 12; i++) {
+    let low = 0.6;
+    let high = 0.99;
+    for (let i = 0; i < 15; i++) {
       const mid = (low + high) / 2;
       const testUrl = canvas.toDataURL(format, mid);
       const testSize = getBase64SizeBytes(testUrl);
@@ -399,7 +398,6 @@
       canvasContainer.className = 'canvas-container';
 
       const canvas = document.createElement('canvas');
-      // 啟用高品質圖像平滑縮放演算法，避免大圖縮小失真
       const ctx = canvas.getContext('2d');
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -535,7 +533,7 @@
 
       const getOptimizedExportResult = () => {
         const expCanvas = generateExportCanvas();
-        return getHighQualityExport(expCanvas, format, maxBytes);
+        return getMaxResolutionExport(expCanvas, format, maxBytes);
       };
 
       const meta = document.createElement('div');
@@ -550,7 +548,7 @@
           <div>檔名：${item.name}</div>
           <div>尺寸：<span>${targetW} × ${targetH}</span></div>
           <div>大小：<span style="color: ${parseFloat(curSizeKB) <= maxKb ? '#166534' : '#dc2626'}; font-weight: bold;">${curSizeKB} KB</span> 
-            <span class="badge ${parseFloat(curSizeKB) <= maxKb ? 'badge-success' : ''}">${parseFloat(curSizeKB) <= maxKb ? '高畫質 (≤' + maxKb + 'KB)' : '超出上限'}</span>
+            <span class="badge ${parseFloat(curSizeKB) <= maxKb ? 'badge-success' : ''}">${parseFloat(curSizeKB) <= maxKb ? '高解析清晰 (≤' + maxKb + 'KB)' : '超出上限'}</span>
           </div>
           ${format !== 'image/png' ? `<div>輸出畫質：<span>${qPercent}%</span></div>` : ''}
         `;
